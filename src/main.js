@@ -11,7 +11,7 @@ var phoneURL = '';
 Handler.bind("/discover", Behavior({
 	onInvoke: function(handler, message){
 		phoneURL = JSON.parse(message.requestText).url;
-		trace("Phone discovered: " + phoneURL);
+		//trace("Phone discovered: " + phoneURL);
 	}
 }));
 
@@ -19,6 +19,12 @@ Handler.bind("/gotAnalogResult", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){
 		var result = message.requestObject;  
 		application.distribute( "onAnalogValueChanged", result ); 		
+	}}
+}));
+
+Handler.bind("/test", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){
+		trace("Test handler invoked\n");		
 	}}
 }));
 
@@ -57,7 +63,14 @@ var MainContainer = new Column({
 	],
 	behavior: Behavior({
 		onAnalogValueChanged: function(content, result) {
-			MainContainer.analogValue.string = convertSliderValue(result.analogValue);
+			var timeRemaining = convertSliderValue(result.analogValue);
+			MainContainer.analogValue.string = timeRemaining.toString();
+			//content.invoke(new Message("/test"));
+			if (phoneURL != '') {
+				var msg = new Message(phoneURL + "updateTime");
+				msg.requestText = JSON.stringify( { time: timeRemaining, url : deviceURL } );
+				content.invoke(msg);
+			}
 		},	
 	})
 });
@@ -86,10 +99,16 @@ application.invoke( new MessageWithObject( "pins:/analogSensor/read?" +
 		callback: "/gotAnalogResult"
 } ) ) );
 
+var deviceURL = ''; // Send this with each msg to mobile app to identify machine as sender
+
 var ApplicationBehavior = Behavior.template({
 	onLaunch: function(application) {
 		application.shared = true;
 		application.discover("smartsudsapp.app");
+		application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
+	},
+	onComplete: function(application, message, json) {
+		deviceURL = 'http://' + json.ip_address + ':' + application.serverPort + '/';
 	},
 	onQuit: function(application) {
 		application.shared = false;
@@ -102,5 +121,5 @@ application.behavior = new ApplicationBehavior();
 
 /* Helper Functions */
 function convertSliderValue(value) {
-	return ((value * 90).toFixed(2)).toString();
+	return ((value * 90).toFixed(2));
 }
