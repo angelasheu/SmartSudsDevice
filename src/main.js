@@ -15,16 +15,10 @@ Handler.bind("/discover", Behavior({
 	}
 }));
 
-Handler.bind("/gotAnalogResult", Object.create(Behavior.prototype, {
+Handler.bind("/gotTimeResult", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){
 		var result = message.requestObject;  
-		application.distribute( "onAnalogValueChanged", result ); 		
-	}}
-}));
-
-Handler.bind("/test", Object.create(Behavior.prototype, {
-	onInvoke: { value: function( handler, message ){
-		trace("Test handler invoked\n");		
+		application.distribute( "onTimeValueChanged", result ); 		
 	}}
 }));
 
@@ -44,6 +38,27 @@ Handler.bind("/color", Object.create(Behavior.prototype, {
 	},
 }));
 
+Handler.bind("/gotTempResult", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){
+		var result = message.requestObject;  
+		application.distribute( "onTempValueChanged", result ); 		
+	}}
+}));
+
+Handler.bind("/gotLockResult", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){
+		var result = message.requestObject;  
+		application.distribute( "onLockValueChanged", result ); 		
+	}}
+}));
+
+Handler.bind("/gotTypeResult", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){
+		var result = message.requestObject;  
+		application.distribute( "onTypeValueChanged", result ); 		
+	}}
+}));
+
 /* Containers and Application Logic */
 
 var ApplicationBehavior = Behavior.template({
@@ -59,19 +74,24 @@ var ApplicationBehavior = Behavior.template({
 var MainContainer = new Column({
 	left: 0, right: 0, top: 0, bottom: 0, skin: new Skin({ fill: 'white',}), 
 	contents: [
-		new Label({ left: 10, right: 0, top: 10, name: 'analogValue', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
+		new Label({ left: 10, right: 0, top: 10, name: 'timeLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
+		new Label({ left: 10, right: 0, top: 10, name: 'tempLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
+		new Label({ left: 10, right: 0, top: 10, name: 'lockLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
+		new Text({ left: 10, right: 0, top: 10, name: 'typeText', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
 	],
 	behavior: Behavior({
-		onAnalogValueChanged: function(content, result) {
-			var timeRemaining = convertSliderValue(result.analogValue);
-			MainContainer.analogValue.string = timeRemaining.toString();
-			//content.invoke(new Message("/test"));
-			if (phoneURL != '') {
-				var msg = new Message(phoneURL + "updateTime");
-				msg.requestText = JSON.stringify( { time: timeRemaining, url : deviceURL } );
-				content.invoke(msg);
-			}
+		onTimeValueChanged: function(content, result) {
+			MainContainer.timeLabel.string = "Time left: " + convertSliderValue(result.timeValue);
 		},	
+		onTempValueChanged: function(content, result) {
+			MainContainer.tempLabel.string = "Temperature: " + result.tempValue;
+		},	
+		onLockValueChanged: function(content, result) {
+			MainContainer.lockLabel.string = "Locked: " + result.lockedValue;
+		},	
+		onTypeValueChanged: function(content, result) {
+			MainContainer.typeText.string = "Perm Press: " + result.permPress + "\nNormal: " + result.normal + "\nGentle: " + result.gentle;
+		}
 	})
 });
 
@@ -82,21 +102,62 @@ var MainContainer = new Column({
   	   	 with the given pin numbers. Pin types and directions
   		 are set within the bll.	*/
 application.invoke( new MessageWithObject( "pins:configure", {
-	analogSensor: {
-        require: "analog",
+	timer: {
+        require: "time",
         pins: {
             analog: { pin: 52 }
+        }
+    },
+    thermostat: {
+        require: "temperature",
+        pins: {
+            analog: { pin: 52 }
+        }
+    },
+    lock: {
+        require: "lock",
+        pins: {
+            digital: { pin: 52 }
+        }
+    },
+    type: {
+        require: "type",
+        pins: {
+            digital: { pin: 52 },
+            digital: { pin: 52 },
+            digital: { pin: 52 }
         }
     }
 }));
 
 /* Use the initialized analogSensor object and repeatedly 
    call its read method with a given interval.  */
-application.invoke( new MessageWithObject( "pins:/analogSensor/read?" + 
+application.invoke( new MessageWithObject( "pins:/timer/read?" + 
 	serializeQuery( {
 		repeat: "on",
 		interval: 20,
-		callback: "/gotAnalogResult"
+		callback: "/gotTimeResult"
+} ) ) );
+
+application.invoke( new MessageWithObject( "pins:/thermostat/read?" + 
+	serializeQuery( {
+		repeat: "on",
+		interval: 20,
+		callback: "/gotTempResult"
+} ) ) );
+
+application.invoke( new MessageWithObject( "pins:/lock/read?" + 
+	serializeQuery( {
+		repeat: "on",
+		interval: 20,
+		callback: "/gotLockResult"
+} ) ) );
+
+application.invoke( new MessageWithObject( "pins:/type/read?" + 
+	serializeQuery( {
+		repeat: "on",
+		interval: 20,
+		callback: "/gotTypeResult"
 } ) ) );
 
 var deviceURL = ''; // Send this with each msg to mobile app to identify machine as sender
