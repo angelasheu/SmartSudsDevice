@@ -82,6 +82,12 @@ var MainContainer = new Column({
 	behavior: Behavior({
 		onTimeValueChanged: function(content, result) {
 			MainContainer.timeLabel.string = "Time left: " + convertSliderValue(result.timeValue);
+			var timeRemaining = convertSliderValue(result.timeValue);
+			if (phoneURL != '') {
+				var msg = new Message(phoneURL + "updateTime");
+				msg.requestText = JSON.stringify( { time: timeRemaining, url : deviceURL } );
+				content.invoke(msg);
+			}
 		},	
 		onTempValueChanged: function(content, result) {
 			MainContainer.tempLabel.string = "Temperature: " + result.tempValue;
@@ -90,7 +96,7 @@ var MainContainer = new Column({
 			MainContainer.lockLabel.string = "Locked: " + result.lockedValue;
 		},	
 		onTypeValueChanged: function(content, result) {
-			MainContainer.typeText.string = "Perm Press: " + result.permPress + "\nNormal: " + result.normal + "\nGentle: " + result.gentle;
+			MainContainer.typeText.string = "Perm Press: " + result.permPress + "\nNormal: " + result.normal + "\nGentle: " + result.delicate;
 		}
 	})
 });

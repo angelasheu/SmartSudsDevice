@@ -22,8 +22,8 @@ var configure = exports.configure = function(configuration) {
 				),
 				new PinsSimulators.DigitalInputAxisDescription(
 					{
-						valueLabel : "Gentle",
-						valueID : "gentle"
+						valueLabel : "Delicate",
+						valueID : "delicate"
 					}
 				)
 			]
