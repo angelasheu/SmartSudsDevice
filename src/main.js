@@ -22,22 +22,6 @@ Handler.bind("/gotTimeResult", Object.create(Behavior.prototype, {
 	}}
 }));
 
-Handler.bind("/color", Object.create(Behavior.prototype, {
-	onInvoke: { value: 
-		function(handler, message) {
-			var red = Math.floor( Math.random() * 255 ).toString( 16 );
-				if ( 1 == red.length ) red = '0' + red;
-				var green = Math.floor( Math.random() * 255 ).toString( 16 );
-				if ( 1 == green.length ) green = '0' + green;
-				var blue = Math.floor( Math.random() * 255 ).toString( 16 );
-				if ( 1 == blue.length ) blue = '0' + blue;
-				var color = '#' + red + green + blue;
-				message.responseText = JSON.stringify( { color: color } );
-				message.status = 200;
-		},
-	},
-}));
-
 Handler.bind("/gotTempResult", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){
 		var result = message.requestObject;  
