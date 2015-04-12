@@ -11,7 +11,8 @@ var configure = exports.configure = function(configuration) {
 				new PinsSimulators.DigitalInputAxisDescription(
 					{
 						valueLabel : "Lock",
-						valueID : "lockedValue"
+						valueID : "lockedValue",
+						value: 1,
 					}
 				)	
 			]

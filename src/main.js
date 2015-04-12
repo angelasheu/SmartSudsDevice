@@ -2,17 +2,43 @@ var THEME = require("themes/sample/theme");
 var CONTROL = require("mobile/control");
 var TOOL = require("mobile/tool");
 
+var graySkin = new Skin({ fill: "gray" });
+var maskSkin = new Skin({ fill: '#7f000000',});
+var separatorSkin = new Skin({ fill: 'silver',});
+var progressSkin = new Skin({ fill: "#96C46E" });
 var whiteSkin = new Skin({ fill: 'white',});
 var titleStyle = new Style({ color: 'black', font: '18px', horizontal: 'center', vertical: 'middle', });
+var labelStyle = new Style({ color: 'black', font: '14px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
+var labelStyleGreen = new Style({ color: "#96C46E", font: '20px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
+var labelStyleSmall = new Style({ color: 'black', font: '14px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
+var whiteTextStyle = new Style({font: "30px Helvetica Neue Light", color: "white", horizontal: 'center', vertical: 'middle'});
 
 var phoneURL = '';
+var machineNumber = 0;
 
 /* Handlers */
 Handler.bind("/discover", Behavior({
 	onInvoke: function(handler, message){
 		phoneURL = JSON.parse(message.requestText).url;
+		
+		MainContainer.phoneURL.string = 'Connected to: ' + phoneURL;
+		
 		//trace("Phone discovered: " + phoneURL);
 	}
+}));
+
+Handler.bind("/getMachineNumber", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){	
+		var text = JSON.stringify({
+			machineNumber: machineNumber,
+			url: deviceURL,
+		});
+		var length = text.length;
+		message.status = 200;
+		message.responseText = text;
+		message.setResponseHeader("Content-Length", length);
+		message.setResponseHeader("Content-Type", "application/json");
+	}}
 }));
 
 Handler.bind("/gotTimeResult", Object.create(Behavior.prototype, {
@@ -43,29 +69,52 @@ Handler.bind("/gotTypeResult", Object.create(Behavior.prototype, {
 	}}
 }));
 
-/* Containers and Application Logic */
+Handler.bind("/machineStart", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){
+		trace(" DEVICE: START MACHINE \n");
+		MainContainer.phoneMessage.string = "Machine started!";
+		MainContainer.phoneMessage.style = labelStyleGreen;
+		message.status = 200;		
+	}}
+}));
 
-var ApplicationBehavior = Behavior.template({
-	onLaunch: function(application) {
-		application.shared = true;
-	},
-	
-	onQuit: function(application) {
-		application.shared = false;
-	},
-})
+
+/* Containers and Application Logic */
+var ProgressBar = Container.template(function($) {return { width: 125, left: 10, height: 30, top: 10, active: true, name: 'progressBar',
+	contents: [
+		Container($, { active: true, left: 0, height: 30, width: 125, skin: graySkin, name: 'progressBackground' }),
+		Container($, { active: true, left: 0, height: 30, width: 50, skin: progressSkin, name: 'currentProgress'}), // TODO: Update width with device values
+	],
+}});
+
+var headerContainer = new Container({
+	top: 0, right: 0, left: 0, skin: graySkin, height: 25,
+	contents: [
+		new Label({ left: 0, right: 0, top: 0, bottom: 0, string: "Smart Suds", style: whiteTextStyle }),
+	],
+});
+
 
 var MainContainer = new Column({
 	left: 0, right: 0, top: 0, bottom: 0, skin: new Skin({ fill: 'white',}), 
 	contents: [
-		new Label({ left: 10, right: 0, top: 10, name: 'timeLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
-		new Label({ left: 10, right: 0, top: 10, name: 'tempLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
-		new Label({ left: 10, right: 0, top: 10, name: 'lockLabel', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
-		new Text({ left: 10, right: 0, top: 10, name: 'typeText', style: new Style({ color: 'black', font: '20px', horizontal: 'null', vertical: 'null', }), string: '- - -', }),
+		headerContainer,
+		new Label({ height: 15, left: 10, right: 0, top: 10, name: 'machineNumber', style: labelStyle, string: machineNumber, }),
+		new Label({ height: 15, left: 10, right: 0, top: 10, name: 'phoneMessage', style: labelStyle, string: 'Machine not started.'}),
+		new Label({ left: 10, right: 0, top: 10, bottom: 5, name: 'phoneURL', style: labelStyle, string: 'Connected to: ---', }),
+		new Line({ left: 5, right: 5, height: 1, skin: separatorSkin, }),
+		new ProgressBar({ }),
+		new Label({ left: 10, right: 0, top: 5, name: 'timeLabel', style: labelStyleSmall, string: '- - -', }),
+		new Label({ left: 10, right: 0, top: 10, name: 'tempLabel', style: labelStyle, string: '- - -', }),
+		new Label({ left: 10, right: 0, top: 10, name: 'lockLabel', style: labelStyle, string: '- - -', }),
+		new Text({ left: 10, right: 0, top: 10, bottom: 3, name: 'typeText', style: labelStyle, string: '- - -', }),
 	],
 	behavior: Behavior({
 		onTimeValueChanged: function(content, result) {
-			MainContainer.timeLabel.string = "Time left: " + convertSliderValue(result.timeValue);
+			var width = result.timeValue * 125; // 125 = width of background container
+			MainContainer.progressBar.currentProgress.width = width;
+		
+			MainContainer.timeLabel.string = "Time left: " + convertSliderValue(result.timeValue) + " min";
 			var timeRemaining = convertSliderValue(result.timeValue);
 			if (phoneURL != '') {
 				var msg = new Message(phoneURL + "updateTime");
@@ -74,13 +123,30 @@ var MainContainer = new Column({
 			}
 		},	
 		onTempValueChanged: function(content, result) {
-			MainContainer.tempLabel.string = "Temperature: " + result.tempValue;
+			var tempValue;
+			if (result.tempValue < 0.33) {
+				tempValue = '50 ˚F (Cold)'
+			} else if (result.tempValue < 0.66) {
+				tempValue = '65 ˚F (Hot)'
+			} else {
+				tempValue = '80 ˚F (Hot)';
+			}
+			MainContainer.tempLabel.string = "Temperature: " + tempValue;
 		},	
 		onLockValueChanged: function(content, result) {
-			MainContainer.lockLabel.string = "Locked: " + result.lockedValue;
+			var lockedValue = result.lockedValue ? "Yes" : "No";
+			MainContainer.lockLabel.string = "Locked: " + lockedValue;
 		},	
 		onTypeValueChanged: function(content, result) {
-			MainContainer.typeText.string = "Perm Press: " + result.permPress + "\nNormal: " + result.normal + "\nGentle: " + result.delicate;
+			var currentLaundryType;
+			if (result.permPress) {
+				currentLaundryType = "Perm. Press";
+			} else if (result.normal) {
+				currentLaundryType = "Normal";
+			} else {
+				currentLaundryType = "Delicate";
+			}
+			MainContainer.typeText.string = "Laundry type: " + currentLaundryType;
 		}
 	})
 });
@@ -155,6 +221,10 @@ var deviceURL = ''; // Send this with each msg to mobile app to identify machine
 var ApplicationBehavior = Behavior.template({
 	onLaunch: function(application) {
 		application.shared = true;
+		machineNumber = Math.floor((Math.random() * 10) + 1); // Generate a number between 1 and 10
+		
+		MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
+		
 		application.discover("smartsudsapp.app");
 		application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
 	},
@@ -162,6 +232,7 @@ var ApplicationBehavior = Behavior.template({
 		deviceURL = 'http://' + json.ip_address + ':' + application.serverPort + '/';
 	},
 	onQuit: function(application) {
+		trace("QUITTING \n");
 		application.shared = false;
 		application.forget("smartsudsapp.app");
 	}
