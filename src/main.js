@@ -3,6 +3,7 @@ var CONTROL = require("mobile/control");
 var TOOL = require("mobile/tool");
 
 var graySkin = new Skin({ fill: "gray" });
+var lightGraySkin = new Skin({ fill: "#E8E8E8" });
 var maskSkin = new Skin({ fill: '#7f000000',});
 var separatorSkin = new Skin({ fill: 'silver',});
 var progressSkin = new Skin({ fill: "#96C46E" });
@@ -15,6 +16,7 @@ var whiteTextStyle = new Style({font: "30px Helvetica Neue Light", color: "white
 
 var phoneURL = '';
 var machineNumber = 0;
+var machineStarted = false;
 
 /* Handlers */
 Handler.bind("/discover", Behavior({
@@ -75,6 +77,8 @@ Handler.bind("/machineStart", Object.create(Behavior.prototype, {
 		MainContainer.phoneMessage.string = "Machine started!";
 		MainContainer.phoneMessage.style = labelStyleGreen;
 		message.status = 200;		
+		
+		machineStarted = true;
 	}}
 }));
 
@@ -82,7 +86,7 @@ Handler.bind("/machineStart", Object.create(Behavior.prototype, {
 /* Containers and Application Logic */
 var ProgressBar = Container.template(function($) {return { width: 125, left: 10, height: 30, top: 10, active: true, name: 'progressBar',
 	contents: [
-		Container($, { active: true, left: 0, height: 30, width: 125, skin: graySkin, name: 'progressBackground' }),
+		Container($, { active: true, left: 0, height: 30, width: 125, skin: lightGraySkin, name: 'progressBackground' }),
 		Container($, { active: true, left: 0, height: 30, width: 50, skin: progressSkin, name: 'currentProgress'}), // TODO: Update width with device values
 	],
 }});
@@ -112,9 +116,9 @@ var MainContainer = new Column({
 	behavior: Behavior({
 		onTimeValueChanged: function(content, result) {
 			var width = result.timeValue * 125; // 125 = width of background container
-			MainContainer.progressBar.currentProgress.width = width;
+			MainContainer.progressBar.currentProgress.width = machineStarted ? width : 0;
 		
-			MainContainer.timeLabel.string = "Time left: " + convertSliderValue(result.timeValue) + " min";
+			MainContainer.timeLabel.string = "Time remaining: " + convertSliderValue(result.timeValue);
 			var timeRemaining = convertSliderValue(result.timeValue);
 			if (phoneURL != '') {
 				var msg = new Message(phoneURL + "updateTime");
