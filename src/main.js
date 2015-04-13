@@ -117,8 +117,15 @@ var MainContainer = new Column({
 		onTimeValueChanged: function(content, result) {
 			var width = result.timeValue * 125; // 125 = width of background container
 			MainContainer.progressBar.currentProgress.width = machineStarted ? width : 0;
-		
-			MainContainer.timeLabel.string = "Time remaining: " + convertSliderValue(result.timeValue);
+			
+			var time = convertSliderValue(result.timeValue).split('.');
+			
+			var seconds = (Number(time[1])/100 * 60).toFixed(0); // Convert to a percentage of 60 sec
+			if (Number(seconds) < 10) {
+				seconds = "0" + seconds;
+			}
+			MainContainer.timeLabel.string = "Time remaining: " + time[0] + ':' + seconds;
+			
 			var timeRemaining = convertSliderValue(result.timeValue);
 			if (phoneURL != '') {
 				var msg = new Message(phoneURL + "updateTime");
