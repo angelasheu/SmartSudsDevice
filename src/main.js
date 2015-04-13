@@ -131,7 +131,7 @@ var MainContainer = new Column({
 			if (result.tempValue < 0.33) {
 				tempValue = '50 ˚F (Cold)'
 			} else if (result.tempValue < 0.66) {
-				tempValue = '65 ˚F (Hot)'
+				tempValue = '65 ˚F (Warm)'
 			} else {
 				tempValue = '80 ˚F (Hot)';
 			}
