@@ -1,6 +1,13 @@
+var DIALOG = require("mydialog");
+var MODEL = require("mobile/model");
 var THEME = require("themes/sample/theme");
+var FLAT_THEME = require("themes/flat/theme");
 var CONTROL = require("mobile/control");
+var KEYBOARD = require("mobile/keyboard");
 var TOOL = require("mobile/tool");
+var BUTTONS = require('controls/buttons');
+
+var DEVICEBUTTONS = require("devicebuttons.js");
 
 var graySkin = new Skin({ fill: "gray" });
 var lightGraySkin = new Skin({ fill: "#E8E8E8" });
@@ -12,18 +19,36 @@ var titleStyle = new Style({ color: 'black', font: '18px', horizontal: 'center',
 var labelStyle = new Style({ color: 'black', font: '14px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
 var labelStyleGreen = new Style({ color: "#96C46E", font: '20px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
 var labelStyleSmall = new Style({ color: 'black', font: '14px Helvetica Neue Light', horizontal: 'null', vertical: 'null', });
+var labelStyleSmallCenter = new Style({ color: 'black', font: '14px Helvetica Neue Light', horizontal: 'center', vertical: 'middle', });
 var whiteTextStyle = new Style({font: "30px Helvetica Neue Light", color: "white", horizontal: 'center', vertical: 'middle'});
+var machineLabelStyle = new Style({ color: 'white', font: 'bold 12px', horizontal: 'center', vertical: 'middle', });
+
+var settingsTexture = new Texture('assets/settings.png', 1);
+var settingsSkin = new Skin({ texture: settingsTexture, width: 20, height: 20 });
+var washerTexture = new Texture('assets/washer.png', 1);
+var washerSkin = new Skin({ texture: washerTexture, width: 75, height: 75 });
+var dryerTexture = new Texture('assets/dryer.png', 1);
+var dryerSkin = new Skin({ texture: washerTexture, width: 75, height: 75 });
+
+var RESERVED = 'Reserved';
+var AVAILABLE = 'Available';
 
 var phoneURL = '';
-var machineNumber = 0;
 var machineStarted = false;
+
+
+// Config panel attributes
+var machineNumber = 0;
+var isReserved = false;
+var isWasher = true; // default
+var laundromatNameValue = 'Elmwood Laundry'; // default
 
 /* Handlers */
 Handler.bind("/discover", Behavior({
 	onInvoke: function(handler, message){
 		phoneURL = JSON.parse(message.requestText).url;
 		
-		MainContainer.phoneURL.string = 'Connected to: ' + phoneURL;
+		phoneURLLabel.string = 'Connected to: ' + phoneURL;
 		
 		//trace("Phone discovered: " + phoneURL);
 	}
@@ -74,12 +99,68 @@ Handler.bind("/gotTypeResult", Object.create(Behavior.prototype, {
 Handler.bind("/machineStart", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){
 		trace(" DEVICE: START MACHINE \n");
-		MainContainer.phoneMessage.string = "Machine started!";
-		MainContainer.phoneMessage.style = labelStyleGreen;
+		phoneMessageLabel.string = "Machine started!";
+		phoneMessageLabel.style = labelStyleGreen;
 		message.status = 200;		
 		
 		machineStarted = true;
 	}}
+}));
+
+Handler.bind("/saveSettings", Object.create(MODEL.CommandBehavior.prototype, {
+	onQuery: { value: 
+		function(handler, query) {
+
+			machineNumber = query['machine_number'];
+			isReserved = (query['is_reserved'] == 'on');
+			laundromatNameValue = query['laundromat_name'];
+			
+			trace("Reservation status: " + query['is_reserved'].toString() + "\n");
+			trace("Current isReserved: " + isReserved + "\n");
+			
+			machineNumberLabel.string = getMachineLabel() + machineNumber;
+			reservationStatus.string = isReserved ? RESERVED : AVAILABLE;
+			laundromatName.string = laundromatNameValue;
+			
+		},
+	},
+}));
+
+Handler.bind("/settings", Object.create(MODEL.DialogBehavior.prototype, {
+	onDescribe: { value: 
+		function(query) {
+			return {
+                    Dialog: DIALOG.Box,
+                    title: "Machine Settings",
+                    action: "/saveSettings", // Change this later
+                    items: [
+                    	{
+                    		Item: DIALOG.Field,
+                    		id: 'machine_number',
+                    		label: getMachineLabel() + ' Number',
+                    		value: machineNumber,
+                    	},
+                    	{
+                            Item: DIALOG.Field,
+                            id: "laundromat_name",
+                            label: "Laundromat",
+                            value: laundromatNameValue,
+                        },
+                        {
+                        	Item: DIALOG.CheckboxRight,
+                            id: "is_reserved",
+                            label: "Reserved",
+                            value: isReserved ? "on" : "off",
+                            checkboxtheme: isReserved ? THEME.CHECK_ON : THEME.CHECK_OFF,
+                        },
+                        
+                        
+                    ],
+                    ok: "Save",
+                    cancel: "Cancel",
+                };
+		},
+	},
 }));
 
 
@@ -92,31 +173,72 @@ var ProgressBar = Container.template(function($) {return { width: 125, left: 10,
 }});
 
 var headerContainer = new Container({
-	top: 0, right: 0, left: 0, skin: graySkin, height: 25,
+	top: 0, right: 0, left: 0, skin: progressSkin, height: 25,
 	contents: [
 		new Label({ left: 0, right: 0, top: 0, bottom: 0, string: "Smart Suds", style: whiteTextStyle }),
 	],
 });
 
+var machineNumberLabel = new Label({ height: 15, left: 0, right: 0, bottom: 0, name: 'machineNumber', style: machineLabelStyle, string: machineNumber, skin: maskSkin });
+var phoneMessageLabel = new Label({ height: 15, left: 10, right: 0, top: 10, name: 'phoneMessage', style: labelStyle, string: 'Machine not started.'});
+var phoneURLLabel = new Label({ left: 10, right: 0, top: 10, bottom: 5, name: 'phoneURL', style: labelStyle, string: 'Connected to: ---', });
+var progressBar = new ProgressBar({ });
+var timeLabel = new Label({ left: 10, right: 0, top: 5, name: 'timeLabel', style: labelStyleSmall, string: '- - -', });
+var tempLabel = new Label({ left: 10, right: 0, top: 10, name: 'tempLabel', style: labelStyle, string: '- - -', });
+var lockLabel = new Label({ left: 10, right: 0, top: 10, name: 'lockLabel', style: labelStyle, string: '- - -', });
+var typeText = new Text({ left: 10, right: 0, top: 10, bottom: 3, name: 'typeText', style: labelStyle, string: '- - -', });
+
+var laundromatName = new Label({ left: 0, right: 0, top: 5, style: labelStyleSmallCenter, string: 'Elmwood Laundry', });
+var laundromatMachineType = new Label({ left: 10, right: 0, top: 5, style: labelStyleSmall, string: 'Washer', });
+var reservationStatus = new Label({ left: 0, right: 0, bottom: 5, style: labelStyleSmallCenter, string: AVAILABLE, });
+
+var CrossDeviceColumn = Column.template(function($) { return { width: 300, height: 50, contents: [
+	//machineNumberLabel,
+	phoneMessageLabel, 
+	phoneURLLabel,
+	new Line({ left: 0, right: 0, height: 1, skin: separatorSkin, }),
+]
+}});
+
+var SensorColumn = Column.template(function($) { return { left: 0, width: 150, /*height: 125,*/ contents: [
+	progressBar,
+	timeLabel,
+	tempLabel,
+	lockLabel,
+	typeText,
+]
+}});
+
+var machineIcon = new Container({ width: 75, height: 75, skin: washerSkin, contents: [
+	machineNumberLabel,
+]});
+
+var ConfigColumn = Column.template(function($) { return { top: 5, width: 140, height: 150, skin: lightGraySkin, contents: [
+	new DEVICEBUTTONS.SettingsButton({ name: 'settingsButton', handlerPath : '/settings', skin: settingsSkin}),
+	//machineNumberLabel,
+	laundromatName,
+	//laundromatMachineType,
+	reservationStatus,
+	machineIcon,
+]}});
+
+var LineContainer = Line.template(function($) { return { width: 300, height: 150, contents: [
+	new ConfigColumn(),
+	new SensorColumn(),
+]}});
 
 var MainContainer = new Column({
 	left: 0, right: 0, top: 0, bottom: 0, skin: new Skin({ fill: 'white',}), 
 	contents: [
 		headerContainer,
-		new Label({ height: 15, left: 10, right: 0, top: 10, name: 'machineNumber', style: labelStyle, string: machineNumber, }),
-		new Label({ height: 15, left: 10, right: 0, top: 10, name: 'phoneMessage', style: labelStyle, string: 'Machine not started.'}),
-		new Label({ left: 10, right: 0, top: 10, bottom: 5, name: 'phoneURL', style: labelStyle, string: 'Connected to: ---', }),
-		new Line({ left: 5, right: 5, height: 1, skin: separatorSkin, }),
-		new ProgressBar({ }),
-		new Label({ left: 10, right: 0, top: 5, name: 'timeLabel', style: labelStyleSmall, string: '- - -', }),
-		new Label({ left: 10, right: 0, top: 10, name: 'tempLabel', style: labelStyle, string: '- - -', }),
-		new Label({ left: 10, right: 0, top: 10, name: 'lockLabel', style: labelStyle, string: '- - -', }),
-		new Text({ left: 10, right: 0, top: 10, bottom: 3, name: 'typeText', style: labelStyle, string: '- - -', }),
+		new CrossDeviceColumn(),
+		new LineContainer(),
+		//new SensorColumn(),
 	],
 	behavior: Behavior({
 		onTimeValueChanged: function(content, result) {
 			var width = result.timeValue * 125; // 125 = width of background container
-			MainContainer.progressBar.currentProgress.width = machineStarted ? width : 0;
+			progressBar.currentProgress.width = machineStarted ? width : 0;
 			
 			var time = convertSliderValue(result.timeValue).split('.');
 			
@@ -124,7 +246,7 @@ var MainContainer = new Column({
 			if (Number(seconds) < 10) {
 				seconds = "0" + seconds;
 			}
-			MainContainer.timeLabel.string = "Time remaining: " + time[0] + ':' + seconds;
+			timeLabel.string = "Time remaining: " + time[0] + ':' + seconds;
 			
 			var timeRemaining = convertSliderValue(result.timeValue);
 			if (phoneURL != '') {
@@ -142,11 +264,11 @@ var MainContainer = new Column({
 			} else {
 				tempValue = '80 ˚F (Hot)';
 			}
-			MainContainer.tempLabel.string = "Temperature: " + tempValue;
+			tempLabel.string = "Temperature: " + tempValue;
 		},	
 		onLockValueChanged: function(content, result) {
 			var lockedValue = result.lockedValue ? "Yes" : "No";
-			MainContainer.lockLabel.string = "Locked: " + lockedValue;
+			lockLabel.string = "Locked: " + lockedValue;
 		},	
 		onTypeValueChanged: function(content, result) {
 			var currentLaundryType;
@@ -157,7 +279,7 @@ var MainContainer = new Column({
 			} else {
 				currentLaundryType = "Delicate";
 			}
-			MainContainer.typeText.string = "Laundry type: " + currentLaundryType;
+			typeText.string = "Laundry type: " + currentLaundryType;
 		}
 	})
 });
@@ -234,7 +356,8 @@ var ApplicationBehavior = Behavior.template({
 		application.shared = true;
 		machineNumber = Math.floor((Math.random() * 10) + 1); // Generate a number between 1 and 10
 		
-		MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
+		//MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
+		machineNumberLabel.string = getMachineLabel() + machineNumber.toString();
 		
 		application.discover("smartsudsapp.app");
 		application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
@@ -249,10 +372,37 @@ var ApplicationBehavior = Behavior.template({
 	}
 });
 
+var model = application.behavior = new MODEL.ApplicationBehavior(application);
+
 application.add(MainContainer);
-application.behavior = new ApplicationBehavior();
+//application.behavior = new ApplicationBehavior();
+application.behavior.onDisplayed = function(application) {
+	application.shared = true;
+	machineNumber = Math.floor((Math.random() * 10) + 1); // Generate a number between 1 and 10
+	
+	//MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
+	machineNumberLabel.string = getMachineLabel() + machineNumber.toString();
+	
+	application.discover("smartsudsapp.app");
+	application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
+}
+
+application.behavior.onComplete = function(application, message, json) {
+	deviceURL = 'http://' + json.ip_address + ':' + application.serverPort + '/';
+}
+
+application.behavior.onQuit = function(application) {
+	trace("QUITTING \n");
+	application.shared = false;
+	application.forget("smartsudsapp.app");
+}
+
 
 /* Helper Functions */
 function convertSliderValue(value) {
 	return ((value * 90).toFixed(2));
+}
+
+function getMachineLabel() {
+	return isWasher ? "Washer " : "Dryer ";
 }
