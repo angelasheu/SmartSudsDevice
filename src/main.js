@@ -122,6 +122,14 @@ Handler.bind("/saveSettings", Object.create(MODEL.CommandBehavior.prototype, {
 			reservationStatus.string = isReserved ? RESERVED : AVAILABLE;
 			laundromatName.string = laundromatNameValue;
 			
+			var msg = new Message(phoneURL + "updateConfigSettings");
+			msg.requestText = JSON.stringify( { machineNumber: machineNumber,
+				 machineType: getMachineLabel(),
+				 reserved: isReserved,
+				 laundromatName: laundromatNameValue,
+				 url : deviceURL } );
+			handler.invoke(msg);
+			
 		},
 	},
 }));
