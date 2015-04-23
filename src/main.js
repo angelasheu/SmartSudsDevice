@@ -70,10 +70,6 @@ Handler.bind("/getMachineNumber", Object.create(Behavior.prototype, {
 
 Handler.bind("/getConfigSettings", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){	
-		/*var text = JSON.stringify({
-			machineNumber: machineNumber,
-			url: deviceURL,
-		});*/
 		var text = JSON.stringify( { machineNumber: machineNumber,
 			 machineType: getMachineLabel(),
 			 reserved: isReserved,
