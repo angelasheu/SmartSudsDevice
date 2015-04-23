@@ -68,6 +68,26 @@ Handler.bind("/getMachineNumber", Object.create(Behavior.prototype, {
 	}}
 }));
 
+Handler.bind("/getConfigSettings", Object.create(Behavior.prototype, {
+	onInvoke: { value: function( handler, message ){	
+		/*var text = JSON.stringify({
+			machineNumber: machineNumber,
+			url: deviceURL,
+		});*/
+		var text = JSON.stringify( { machineNumber: machineNumber,
+			 machineType: getMachineLabel(),
+			 reserved: isReserved,
+			 laundromatName: laundromatNameValue,
+			 url : deviceURL 
+		} );
+		var length = text.length;
+		message.status = 200;
+		message.responseText = text;
+		message.setResponseHeader("Content-Length", length);
+		message.setResponseHeader("Content-Type", "application/json");
+	}}
+}));
+
 Handler.bind("/gotTimeResult", Object.create(Behavior.prototype, {
 	onInvoke: { value: function( handler, message ){
 		var result = message.requestObject;  
