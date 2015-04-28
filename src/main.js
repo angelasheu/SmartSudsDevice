@@ -28,7 +28,7 @@ var settingsSkin = new Skin({ texture: settingsTexture, width: 20, height: 20 })
 var washerTexture = new Texture('assets/washer.png', 1);
 var washerSkin = new Skin({ texture: washerTexture, width: 75, height: 75 });
 var dryerTexture = new Texture('assets/dryer.png', 1);
-var dryerSkin = new Skin({ texture: washerTexture, width: 75, height: 75 });
+var dryerSkin = new Skin({ texture: dryerTexture, width: 75, height: 75 });
 
 var RESERVED = 'Reserved';
 var AVAILABLE = 'Available';
@@ -129,13 +129,15 @@ Handler.bind("/saveSettings", Object.create(MODEL.CommandBehavior.prototype, {
 
 			machineNumber = query['machine_number'];
 			isReserved = (query['is_reserved'] == 'on');
+			isWasher = (query['is_washer'] == 'on');
 			laundromatNameValue = query['laundromat_name'];
 			
 			trace("Reservation status: " + query['is_reserved'].toString() + "\n");
 			trace("Current isReserved: " + isReserved + "\n");
 			
-			machineNumberLabel.string = getMachineLabel() + machineNumber;
+			machineNumberLabel.string = getMachineLabel() + " " + machineNumber;
 			reservationStatus.string = isReserved ? RESERVED : AVAILABLE;
+			machineIcon.skin = isWasher ? washerSkin : dryerSkin;
 			laundromatName.string = laundromatNameValue;
 			
 			var msg = new Message(phoneURL + "updateConfigSettings");
@@ -176,6 +178,13 @@ Handler.bind("/settings", Object.create(MODEL.DialogBehavior.prototype, {
                             label: "Reserved",
                             value: isReserved ? "on" : "off",
                             checkboxtheme: isReserved ? THEME.CHECK_ON : THEME.CHECK_OFF,
+                        },
+                        {
+                        	Item: DIALOG.CheckboxRight,
+                            id: "is_washer",
+                            label: "Is Washer",
+                            value: isWasher ? "on" : "off",
+                            checkboxtheme: isWasher ? THEME.CHECK_ON : THEME.CHECK_OFF,
                         },
                         
                         
@@ -281,7 +290,9 @@ var MainContainer = new Column({
 		},	
 		onTempValueChanged: function(content, result) {
 			var tempValue;
-			if (result.tempValue < 0.33) {
+			if (!isWasher) { // Washers do NOT have temperature (still have laundry type though)
+				tempValue = 'N/A';
+			} else if (result.tempValue < 0.33) {
 				tempValue = '50 ˚F (Cold)'
 			} else if (result.tempValue < 0.66) {
 				tempValue = '65 ˚F (Warm)'
@@ -381,7 +392,7 @@ var ApplicationBehavior = Behavior.template({
 		machineNumber = Math.floor((Math.random() * 10) + 1); // Generate a number between 1 and 10
 		
 		//MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
-		machineNumberLabel.string = getMachineLabel() + machineNumber.toString();
+		machineNumberLabel.string = getMachineLabel() + " " + machineNumber.toString();
 		
 		application.discover("smartsudsapp.app");
 		application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
@@ -405,7 +416,7 @@ application.behavior.onDisplayed = function(application) {
 	machineNumber = Math.floor((Math.random() * 10) + 1); // Generate a number between 1 and 10
 	
 	//MainContainer.machineNumber.string = "Machine Number: " + machineNumber.toString();
-	machineNumberLabel.string = getMachineLabel() + machineNumber.toString();
+	machineNumberLabel.string = getMachineLabel() + " " + machineNumber.toString();
 	
 	application.discover("smartsudsapp.app");
 	application.invoke(new Message("xkpr://wifi/status"), Message.JSON);
@@ -428,5 +439,5 @@ function convertSliderValue(value) {
 }
 
 function getMachineLabel() {
-	return isWasher ? "Washer " : "Dryer ";
+	return isWasher ? "Washer" : "Dryer";
 }
