@@ -35,6 +35,7 @@ var AVAILABLE = 'Available';
 
 var phoneURL = '';
 var machineStarted = false;
+var totalTime = 90.0; // Default
 
 
 // Config panel attributes
@@ -65,6 +66,13 @@ Handler.bind("/getMachineNumber", Object.create(Behavior.prototype, {
 		message.responseText = text;
 		message.setResponseHeader("Content-Length", length);
 		message.setResponseHeader("Content-Type", "application/json");
+	}}
+}));
+
+Handler.bind('/changeTotalTime', Object.create(Behavior.prototype, {
+	onInvoke: { value: function(handler, message) {
+		var requestText = JSON.parse(message.requestText);
+		totalTime = requestText.totalTime;
 	}}
 }));
 
@@ -435,7 +443,7 @@ application.behavior.onQuit = function(application) {
 
 /* Helper Functions */
 function convertSliderValue(value) {
-	return ((value * 90).toFixed(2));
+	return ((value * totalTime).toFixed(2));
 }
 
 function getMachineLabel() {
